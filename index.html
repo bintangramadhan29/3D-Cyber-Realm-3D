@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber Realm 3D - V26.0 Definitive Mega Update</title>
+    <title>Cyber Realm 3D - V29.0 Dual Health Bar & Repair Protocol</title>
     <style>
         * {
             margin: 0;
@@ -28,6 +28,37 @@
             z-index: 1;
         }
 
+        /* EFEK FLASH MERAH SAAT TABRAKAN */
+        #damageFlash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(255, 0, 85, 0.35);
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.1s ease-out;
+        }
+
+        /* FLOATING DAMAGE TEXT */
+        .damage-text {
+            position: absolute;
+            color: #ff0055;
+            font-size: 1.5rem;
+            font-weight: 900;
+            text-shadow: 0 0 10px #ff0055, 0 0 20px #000;
+            pointer-events: none;
+            z-index: 4;
+            animation: floatUp 0.6s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -100px) scale(0.8); }
+        }
+
         .hud {
             position: absolute;
             top: 0;
@@ -45,7 +76,7 @@
         .header-hud {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
         }
 
         .title {
@@ -56,19 +87,35 @@
             text-shadow: 0 0 15px #00f0ff;
         }
 
+        .hud-right-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
         .stats-group {
             display: flex;
-            gap: 12px;
+            flex-direction: column;
+            gap: 8px;
             background: rgba(5, 12, 30, 0.85);
             backdrop-filter: blur(16px);
-            padding: 10px 22px;
+            padding: 12px 22px;
             border-radius: 20px;
             border: 1px solid rgba(0, 240, 255, 0.4);
             box-shadow: 0 0 25px rgba(0, 240, 255, 0.25);
+            min-width: 320px;
+        }
+
+        .hud-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
         }
 
         .hud-item {
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 800;
             display: flex;
             align-items: center;
@@ -77,20 +124,75 @@
 
         .score-board { color: #ff0055; text-shadow: 0 0 8px #ff0055; }
         .level-board { color: #00ff88; text-shadow: 0 0 8px #00ff88; }
-        .shield-board { color: #00f0ff; text-shadow: 0 0 8px #00f0ff; }
         .credit-board { color: #a855f7; text-shadow: 0 0 8px #a855f7; }
         .rank-board { color: #ffaa00; text-shadow: 0 0 8px #ffaa00; }
-        .combo-board { color: #ff3300; font-size: 1.1rem; text-shadow: 0 0 12px #ff3300; }
+        .combo-board { color: #ff3300; font-size: 1rem; text-shadow: 0 0 12px #ff3300; }
 
-        .credit-board.empty {
-            color: #ff0055 !important;
-            text-shadow: 0 0 10px #ff0055 !important;
-            animation: pulse 0.8s infinite alternate;
+        /* DESAIN DUAL BAR (SHIELD & HEALTH) */
+        .bar-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            margin-top: 4px;
         }
 
-        @keyframes pulse {
-            from { opacity: 0.5; }
-            to { opacity: 1; }
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 900;
+        }
+
+        .bar-label { min-width: 55px; letter-spacing: 1px; }
+        .label-shield { color: #00f0ff; text-shadow: 0 0 6px #00f0ff; }
+        .label-health { color: #ff0055; text-shadow: 0 0 6px #ff0055; }
+
+        .bar-outer {
+            flex-grow: 1;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bar-inner-shield {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #00f0ff, #0088ff);
+            transition: width 0.15s ease-out;
+            box-shadow: 0 0 10px #00f0ff;
+        }
+
+        .bar-inner-health {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ff0055, #ff5500);
+            transition: width 0.15s ease-out;
+            box-shadow: 0 0 10px #ff0055;
+        }
+
+        .btn-exit-hud {
+            background: rgba(255, 0, 85, 0.2);
+            border: 1px solid #ff0055;
+            color: #ff0055;
+            padding: 10px 16px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 12px rgba(255, 0, 85, 0.3);
+        }
+
+        .btn-exit-hud:hover {
+            background: #ff0055;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.8);
+            transform: scale(1.05);
         }
 
         .ulti-container {
@@ -135,18 +237,48 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(2, 6, 20, 0.85);
-            backdrop-filter: blur(12px);
+            background: rgba(2, 6, 20, 0.9);
+            backdrop-filter: blur(16px);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            gap: 20px;
             z-index: 5;
+        }
+
+        .pause-title {
             font-size: 3rem;
             font-weight: 900;
             color: #00f0ff;
             text-shadow: 0 0 30px #00f0ff;
             letter-spacing: 6px;
         }
+
+        .pause-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-pause-action {
+            background: linear-gradient(135deg, #00f0ff, #7000ff);
+            border: none;
+            color: #fff;
+            padding: 12px 28px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+            transition: all 0.25s ease;
+        }
+
+        .btn-pause-action.red {
+            background: linear-gradient(135deg, #ff0055, #990033);
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+        }
+
+        .btn-pause-action:hover { transform: scale(1.05); }
 
         .modal {
             position: absolute;
@@ -263,24 +395,10 @@
             transform: translateY(-2px);
         }
 
-        .ship-card h4 {
-            color: #00f0ff;
-            font-size: 0.8rem;
-            margin-bottom: 4px;
-        }
+        .ship-card h4 { color: #00f0ff; font-size: 0.8rem; margin-bottom: 4px; }
+        .ship-card p { color: #94a3b8; font-size: 0.65rem; line-height: 1.3; }
 
-        .ship-card p {
-            color: #94a3b8;
-            font-size: 0.65rem;
-            line-height: 1.3;
-        }
-
-        .perk-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
+        .perk-container { display: flex; gap: 10px; margin-bottom: 16px; }
         .perk-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(0, 240, 255, 0.2);
@@ -371,42 +489,72 @@
 <body>
 
     <div id="canvas-container"></div>
+    <div id="damageFlash"></div>
 
     <div class="hud">
         <div class="header-hud">
-            <div class="title">CYBER REALM V26.0</div>
-            <div class="stats-group">
-                <div class="hud-item credit-board" id="hudCreditBox">💎 <span id="creditText">0</span></div>
-                <div class="hud-item shield-board">🛡️ <span id="shieldText">100%</span></div>
-                <div class="hud-item level-board">⭐ LVL: <span id="level">1</span></div>
-                <div class="hud-item score-board">🎯 <span id="score">0</span></div>
-                <div class="hud-item combo-board" id="comboBox">🔥 x1</div>
-                <div class="hud-item rank-board">🎖️ <span id="rankText">CADET</span></div>
+            <div class="title">CYBER REALM V29.0</div>
+            <div class="hud-right-group">
+                <div class="stats-group">
+                    <div class="hud-top-row">
+                        <div class="hud-item credit-board" id="hudCreditBox">💎 <span id="creditText">0</span></div>
+                        <div class="hud-item level-board">⭐ LVL: <span id="level">1</span></div>
+                        <div class="hud-item score-board">🎯 <span id="score">0</span></div>
+                        <div class="hud-item combo-board" id="comboBox">🔥 x1</div>
+                        <div class="hud-item rank-board">🎖️ <span id="rankText">CADET</span></div>
+                    </div>
+
+                    <!-- DUAL HEALTH & SHIELD BARS -->
+                    <div class="bar-container">
+                        <div class="bar-row">
+                            <span class="bar-label label-shield">SHIELD</span>
+                            <div class="bar-outer">
+                                <div id="shieldBarInner" class="bar-inner-shield"></div>
+                            </div>
+                            <span id="shieldText" style="color: #00f0ff; min-width: 35px; text-align: right;">100%</span>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label label-health">HEALTH</span>
+                            <div class="bar-outer">
+                                <div id="healthBarInner" class="bar-inner-health"></div>
+                            </div>
+                            <span id="healthText" style="color: #ff0055; min-width: 35px; text-align: right;">100%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-exit-hud" onclick="returnToMainMenu()">🚪 END GAME</button>
             </div>
         </div>
 
         <div class="ulti-container">
-            <div class="ulti-text">OVERDRIVE BEAM READY (E/KLIK KANAN)</div>
+            <div class="ulti-text">OVERDRIVE BEAM READY (E/KLIK KANAN) | REPAIR DRONE (R)</div>
             <div class="ulti-bar-outer">
                 <div id="ultiBar" class="ulti-bar-inner"></div>
             </div>
         </div>
     </div>
 
-    <div id="pauseOverlay" class="pause-overlay hidden">GAME PAUSED</div>
+    <div id="pauseOverlay" class="pause-overlay hidden">
+        <div class="pause-title">GAME PAUSED</div>
+        <div class="pause-actions">
+            <button class="btn-pause-action" onclick="togglePause()">RESUME</button>
+            <button class="btn-pause-action red" onclick="returnToMainMenu()">RETURN TO MENU</button>
+        </div>
+    </div>
 
     <div id="gameModal" class="modal">
         <div class="modal-card">
             <h1 id="modalTitle">CYBER REALM 3D</h1>
-            <p class="subtitle" id="modalSub">V26.0 Definitive Mega Update</p>
+            <p class="subtitle" id="modalSub">V29.0 Dual Health Bar & Repair Protocol</p>
 
             <div class="section-label">🎮 CARA BERMAIN & KONTROL:</div>
             <div class="controls-grid">
                 <div class="control-item"><span class="key-badge">MOUSE</span><span class="control-desc">Arahkan Pesawat</span></div>
-                <div class="control-item"><span class="key-badge">L-CLICK / SPACE</span><span class="control-desc">Tembak Laser Utama</span></div>
+                <div class="control-item"><span class="key-badge">HOLD CLICK/SPACE</span><span class="control-desc">Tahan Untuk Tembak</span></div>
                 <div class="control-item"><span class="key-badge">R-CLICK / E</span><span class="control-desc">Mega Beam (Ulti)</span></div>
                 <div class="control-item"><span class="key-badge">SHIFT</span><span class="control-desc">Dash Roll (Evasion)</span></div>
                 <div class="control-item"><span class="key-badge">Q</span><span class="control-desc">Homing Missile</span></div>
+                <div class="control-item"><span class="key-badge">R</span><span class="control-desc">Repair Drone (+HP)</span></div>
                 <div class="control-item"><span class="key-badge">F</span><span class="control-desc">Toggle Auto-Fire</span></div>
                 <div class="control-item"><span class="key-badge">SCROLL</span><span class="control-desc">Ganti Mode Senjata</span></div>
                 <div class="control-item"><span class="key-badge">P / ESC</span><span class="control-desc">Pause / Unpause Game</span></div>
@@ -444,7 +592,7 @@
             <div class="perk-container">
                 <div class="perk-card active" onclick="selectPerk('vampire', this)">
                     <h4>🩸 NANO VAMPIRE</h4>
-                    <p>Memulihkan +2% Shield setiap menghancurkan musuh.</p>
+                    <p>Memulihkan +2% Shield/HP setiap menghancurkan musuh.</p>
                 </div>
                 <div class="perk-card" onclick="selectPerk('critical', this)">
                     <h4>⚡ CRITICAL LASER</h4>
@@ -495,7 +643,13 @@
         let audioCtx;
         
         let selectedShip = 'apex';
-        let credits = 0, score = 0, topScore = 0, level = 1, shield = 100, maxShield = 100;
+        let credits = 0, score = 0, topScore = 0, level = 1;
+        
+        // DUAL HEALTH & SHIELD STATS
+        let shield = 100, maxShield = 100;
+        let health = 100, maxHealth = 100;
+        let repairCooldown = 0;
+        
         let comboMultiplier = 1, maxCombo = 1;
         let selectedPerk = 'vampire', empTriggered = false;
         let upgShieldLvl = 1, upgLaserLvl = 1;
@@ -505,10 +659,16 @@
         let ultiCharge = 100, isUltiActive = false;
         let lastHitTime = Date.now();
         let isPlaying = false, isPaused = false, isAutoFire = false, autoFireInterval = null;
+        
+        let isShootingHeld = false, shootHoldInterval = null;
+        let cameraShakeTime = 0;
 
         const scoreElement = document.getElementById('score');
         const levelElement = document.getElementById('level');
-        const shieldElement = document.getElementById('shieldText');
+        const shieldText = document.getElementById('shieldText');
+        const healthText = document.getElementById('healthText');
+        const shieldBarInner = document.getElementById('shieldBarInner');
+        const healthBarInner = document.getElementById('healthBarInner');
         const creditElement = document.getElementById('creditText');
         const hudCreditBox = document.getElementById('hudCreditBox');
         const comboBox = document.getElementById('comboBox');
@@ -517,6 +677,7 @@
         const pauseOverlay = document.getElementById('pauseOverlay');
         const gameModal = document.getElementById('gameModal');
         const modalTitle = document.getElementById('modalTitle');
+        const damageFlash = document.getElementById('damageFlash');
 
         let mouse = { x: 0, y: 0 };
         let targetPos = { x: 0, y: 0 };
@@ -550,8 +711,39 @@
                     osc.frequency.exponentialRampToValueAtTime(30, now + 0.25);
                     gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
                     osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'impact') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(120, now);
+                    osc.frequency.exponentialRampToValueAtTime(20, now + 0.35);
+                    gain.gain.setValueAtTime(0.35, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now); osc.stop(now + 0.35);
                 }
             } catch (e) {}
+        }
+
+        function updateDualBars() {
+            const shieldPct = Math.max(0, Math.min(100, Math.floor((shield / maxShield) * 100)));
+            const healthPct = Math.max(0, Math.min(100, Math.floor((health / maxHealth) * 100)));
+
+            shieldBarInner.style.width = shieldPct + '%';
+            healthBarInner.style.width = healthPct + '%';
+            shieldText.innerText = shieldPct + '%';
+            healthText.innerText = healthPct + '%';
+        }
+
+        function triggerImpactFX(dmgValue) {
+            playSound('impact');
+            cameraShakeTime = 12;
+
+            damageFlash.style.opacity = '1';
+            setTimeout(() => { damageFlash.style.opacity = '0'; }, 120);
+
+            const dmgElem = document.createElement('div');
+            dmgElem.className = 'damage-text';
+            dmgElem.innerText = `-${dmgValue} HP`;
+            dmgElem.style.left = (window.innerWidth / 2 + (Math.random() - 0.5) * 100) + 'px';
+            dmgElem.style.top = (window.innerHeight / 2 + (Math.random() - 0.5) * 60) + 'px';
+            document.body.appendChild(dmgElem);
+            setTimeout(() => { dmgElem.remove(); }, 600);
         }
 
         function updateUiRealtime() {
@@ -576,6 +768,33 @@
             else pauseOverlay.classList.add('hidden');
         }
 
+        function returnToMainMenu() {
+            isPlaying = false;
+            isPaused = false;
+            if (autoFireInterval) clearInterval(autoFireInterval);
+            if (shootHoldInterval) clearInterval(shootHoldInterval);
+            isAutoFire = false; isShootingHeld = false;
+
+            if (score > topScore) {
+                topScore = score;
+                localStorage.setItem('cyber_top_score', topScore);
+            }
+
+            pauseOverlay.classList.add('hidden');
+            modalTitle.innerText = "CYBER REALM 3D";
+            document.getElementById('modalSub').innerText = `Skor Terakhir: ${score} | Top Skor: ${topScore}`;
+            document.getElementById('statTopScore').innerText = topScore;
+            document.getElementById('statDiamondCount').innerText = credits;
+            document.getElementById('statMaxCombo').innerText = 'x' + maxCombo;
+            document.getElementById('statFinalRank').innerText = rankText.innerText;
+
+            enemies.forEach(e => scene.remove(e));
+            lasers.forEach(l => scene.remove(l));
+            enemies = []; lasers = [];
+
+            gameModal.classList.remove('hidden');
+        }
+
         function selectShip(shipType, element) {
             selectedShip = shipType;
             document.querySelectorAll('.ship-card').forEach(c => c.classList.remove('active'));
@@ -593,7 +812,7 @@
                 credits -= cost;
                 if (type === 'shield') { upgShieldLvl++; maxShield += 25; shield = maxShield; document.getElementById('lvlShield').innerText = upgShieldLvl; }
                 else if (type === 'laser') { upgLaserLvl++; document.getElementById('lvlLaser').innerText = upgLaserLvl; }
-                shieldElement.innerText = Math.floor(shield) + '%';
+                updateDualBars();
                 updateUiRealtime();
             }
         }
@@ -628,11 +847,27 @@
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('contextmenu', e => e.preventDefault());
+
             document.addEventListener('mousedown', (e) => {
                 initAudio();
-                if (isPaused) return;
-                if (e.button === 0) shootLaser();
+                if (isPaused || !isPlaying) return;
+                if (e.button === 0) {
+                    isShootingHeld = true;
+                    shootLaser();
+                    if (!shootHoldInterval) {
+                        shootHoldInterval = setInterval(() => {
+                            if (isShootingHeld && isPlaying && !isPaused) shootLaser();
+                        }, 100);
+                    }
+                }
                 if (e.button === 2) triggerMegaBeam();
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (e.button === 0) {
+                    isShootingHeld = false;
+                    if (shootHoldInterval) { clearInterval(shootHoldInterval); shootHoldInterval = null; }
+                }
             });
 
             document.addEventListener('wheel', (e) => {
@@ -647,11 +882,20 @@
                 if (e.repeat) return;
 
                 if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
-                if (isPaused) return;
+                if (isPaused || !isPlaying) return;
 
-                if (e.code === 'Space') shootLaser();
+                if (e.code === 'Space') {
+                    isShootingHeld = true;
+                    shootLaser();
+                    if (!shootHoldInterval) {
+                        shootHoldInterval = setInterval(() => {
+                            if (isShootingHeld && isPlaying && !isPaused) shootLaser();
+                        }, 100);
+                    }
+                }
                 if (e.code === 'KeyE') triggerMegaBeam();
                 if (e.code === 'KeyQ') launchSecondaryMissile();
+                if (e.code === 'KeyR') useRepairDrone();
                 if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') triggerDash();
 
                 if (e.code === 'KeyF') {
@@ -662,6 +906,22 @@
                     }
                 }
             });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    isShootingHeld = false;
+                    if (shootHoldInterval) { clearInterval(shootHoldInterval); shootHoldInterval = null; }
+                }
+            });
+        }
+
+        function useRepairDrone() {
+            if (!isPlaying || isPaused || repairCooldown > 0) return;
+            repairCooldown = 200;
+            shield = Math.min(maxShield, shield + 30);
+            health = Math.min(maxHealth, health + 30);
+            updateDualBars();
+            createExplosion(player.position, 0x00ff88);
         }
 
         function triggerDash() {
@@ -852,16 +1112,29 @@
             }
         }
 
-        function triggerDamage() {
+        /* PEMBAGIAN DAMAGE SHIELD DAN HEALTH BAR */
+        function triggerDamage(dmgValue = 20) {
             if (isDashing) return;
             lastHitTime = Date.now();
             comboMultiplier = 1;
             comboBox.innerText = '🔥 x1';
 
-            shield -= 15;
-            shieldElement.innerText = Math.max(0, Math.floor(shield)) + '%';
+            if (shield > 0) {
+                if (shield >= dmgValue) {
+                    shield -= dmgValue;
+                } else {
+                    const leftover = dmgValue - shield;
+                    shield = 0;
+                    health -= leftover;
+                }
+            } else {
+                health -= dmgValue;
+            }
 
-            if (shield <= 0) gameOver();
+            updateDualBars();
+            triggerImpactFX(dmgValue);
+
+            if (health <= 0) gameOver();
         }
 
         function addScore(pts, reward = 15) {
@@ -876,9 +1149,10 @@
             scoreElement.innerText = score;
             if (score % 50 === 0) { level = Math.floor(score / 50) + 1; levelElement.innerText = level; }
 
-            if (selectedPerk === 'vampire' && shield < maxShield) {
-                shield = Math.min(maxShield, shield + 2);
-                shieldElement.innerText = Math.floor(shield) + '%';
+            if (selectedPerk === 'vampire') {
+                if (shield < maxShield) shield = Math.min(maxShield, shield + 2);
+                else if (health < maxHealth) health = Math.min(maxHealth, health + 2);
+                updateDualBars();
             }
 
             updateUiRealtime();
@@ -902,13 +1176,16 @@
             createXWingPlayer();
 
             maxShield = selectedShip === 'dreadnought' ? 150 : 100;
-            score = 0; level = 1; shield = maxShield; weaponType = 'normal'; weaponTimer = 0;
-            comboMultiplier = 1; maxCombo = 1; ultiCharge = 100;
+            maxHealth = 100;
+            shield = maxShield; health = maxHealth;
+            score = 0; level = 1; weaponType = 'normal'; weaponTimer = 0;
+            comboMultiplier = 1; maxCombo = 1; ultiCharge = 100; repairCooldown = 0;
             lastHitTime = Date.now();
             isPaused = false;
             pauseOverlay.classList.add('hidden');
             
-            scoreElement.innerText = score; levelElement.innerText = level; shieldElement.innerText = Math.floor(shield) + '%';
+            scoreElement.innerText = score; levelElement.innerText = level;
+            updateDualBars();
             comboBox.innerText = '🔥 x1'; ultiBar.style.width = '100%';
             isPlaying = true;
 
@@ -925,6 +1202,7 @@
         function gameOver() {
             isPlaying = false;
             if (autoFireInterval) clearInterval(autoFireInterval);
+            if (shootHoldInterval) clearInterval(shootHoldInterval);
             modalTitle.innerText = "SISTEM GAGAL";
             document.getElementById('modalSub').innerText = `Skor Akhir: ${score} | Top Skor: ${topScore}`;
             document.getElementById('statTopScore').innerText = topScore;
@@ -939,11 +1217,22 @@
 
             if (isPlaying && !isPaused) {
                 if (dashCooldown > 0) dashCooldown--;
+                if (repairCooldown > 0) repairCooldown--;
                 if (weaponTimer > 0) { weaponTimer--; if (weaponTimer <= 0) weaponType = 'normal'; }
 
+                if (cameraShakeTime > 0) {
+                    cameraShakeTime--;
+                    camera.position.x = (Math.random() - 0.5) * 0.4;
+                    camera.position.y = 3 + (Math.random() - 0.5) * 0.4;
+                } else {
+                    camera.position.x = 0;
+                    camera.position.y = 3;
+                }
+
+                // AUTO RECHARGE SHIELD BAR
                 if (Date.now() - lastHitTime > (selectedShip === 'eclipse' ? 1500 : 3000) && shield < maxShield) {
-                    shield = Math.min(maxShield, shield + 0.08);
-                    shieldElement.innerText = Math.floor(shield) + '%';
+                    shield = Math.min(maxShield, shield + 0.1);
+                    updateDualBars();
                 }
 
                 if (ultiCharge < 100) {
@@ -982,7 +1271,7 @@
                     if (enemy.position.distanceTo(player.position) < 1.2) {
                         createExplosion(player.position);
                         scene.remove(enemy); enemies.splice(i, 1);
-                        triggerDamage();
+                        triggerDamage(20);
                         continue;
                     }
 
