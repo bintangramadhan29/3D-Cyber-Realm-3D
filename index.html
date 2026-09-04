@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Cyber Squad - V12.1 Bug Fixed & Stable</title>
+    <title>3D Cyber Squad - V13.0 Ultimate Arsenal & Hyper Dash</title>
     <style>
         * {
             margin: 0;
@@ -347,7 +347,7 @@
 
     <div class="hud">
         <div class="header-hud">
-            <div class="title">CYBER SQUAD V12.1</div>
+            <div class="title">CYBER SQUAD V13.0</div>
             <div class="stats-group">
                 <div class="hud-item credit-board">💎 DIAMOND: <span id="creditText">0</span></div>
                 <div class="hud-item shield-board">🛡️ SHIELD: <span id="shieldText">100%</span></div>
@@ -363,7 +363,7 @@
         </div>
 
         <div class="ulti-container">
-            <div class="ulti-text">MEGA BEAM (TEKAN 'E' / KLIK KANAN)</div>
+            <div class="ulti-text">MEGA BEAM (E/KLIK KANAN) | DASH (SHIFT)</div>
             <div class="ulti-bar-outer">
                 <div id="ultiBar" class="ulti-bar-inner"></div>
             </div>
@@ -375,7 +375,7 @@
     <div id="gameModal" class="modal">
         <div class="modal-card">
             <h1 id="modalTitle">CYBER SQUAD 3D</h1>
-            <p class="subtitle" id="modalSub">V12.1 Bug Fixed & Stable Engine</p>
+            <p class="subtitle" id="modalSub">V13.0 Ultimate Arsenal & Hyper Dash Edition</p>
 
             <div class="perk-container">
                 <div class="perk-card active" onclick="selectPerk('vampire', this)">
@@ -439,7 +439,7 @@
     <script>
         let scene, camera, renderer;
         let player, wingman1, wingman2, boss = null, megaBeam = null;
-        let lasers = [], enemyLasers = [], missiles = [], enemies = [], particles = [], powerups = [];
+        let lasers = [], enemyLasers = [], missiles = [], enemies = [], particles = [], powerups = [], bossShieldOrbs = [];
         let starFieldMesh;
         let audioCtx;
         
@@ -447,11 +447,12 @@
         let selectedPerk = 'vampire', aegisUsed = false;
         let upgShieldLvl = 1, upgLaserLvl = 1, upgWingmenLvl = 1, upgUltiLvl = 1;
         
+        let weaponType = 'normal', weaponTimer = 0; // Tipe Senjata Baru: normal, shotgun, beam
+        let dashCooldown = 0, isDashing = false;
         let totalBossKilled = 0, totalEnemiesKilled = 0;
         let ultiCharge = 100, isUltiActive = false;
         let bossHp = 1200, maxBossHp = 1200;
         let isBossSpawning = false, hasBossSpawnedOnce = false;
-        let tripleShotTimer = 0, magnetTimer = 0;
         let isPlaying = false;
 
         const scoreElement = document.getElementById('score');
@@ -479,9 +480,7 @@
             if (!audioCtx) {
                 try {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                } catch(e) {
-                    console.warn("Audio not supported");
-                }
+                } catch(e) {}
             }
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -504,6 +503,13 @@
                     gain.gain.setValueAtTime(0.04, now);
                     gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
                     osc.start(now); osc.stop(now + 0.08);
+                } else if (type === 'dash') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
                 } else if (type === 'beam') {
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(200, now);
@@ -588,7 +594,26 @@
                 initAudio();
                 if (e.code === 'Space') shootLaser();
                 if (e.code === 'KeyE') triggerMegaBeam();
+                if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') triggerDash();
             });
+        }
+
+        function triggerDash() {
+            if (!isPlaying || dashCooldown > 0) return;
+            dashCooldown = 120; // 2 Detik cooldown
+            isDashing = true;
+            playSound('dash');
+            
+            // Efek Dorongan Dash Ke Depan
+            player.position.z -= 2.0;
+            camera.fov = 75;
+            camera.updateProjectionMatrix();
+
+            setTimeout(() => {
+                isDashing = false;
+                camera.fov = 60;
+                camera.updateProjectionMatrix();
+            }, 300);
         }
 
         function createXWingPlayer() {
@@ -739,6 +764,23 @@
             return cruiser;
         }
 
+        /* POWERUP DROP ITEM UNTUK SENJATA BARU */
+        function spawnWeaponDrop(pos) {
+            const types = ['shotgun', 'beam'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const color = type === 'shotgun' ? 0xff0055 : 0x00f0ff;
+
+            const p = new THREE.Mesh(
+                new THREE.OctahedronGeometry(0.6),
+                new THREE.MeshBasicMaterial({ color })
+            );
+            p.position.copy(pos);
+            p.userData = { type };
+            scene.add(p);
+            powerups.push(p);
+        }
+
+        /* MEGA TITAN STEALTH DREADNOUGHT BOS (DENGAN SHIELD ORBS) */
         function spawnBoss() {
             if (boss || isBossSpawning) return;
             isBossSpawning = true;
@@ -772,6 +814,18 @@
                 cannon.position.set(x * 0.7, -1, -4);
                 boss.add(cannon);
             });
+
+            // Tambahkan 3 Bola Perisai Rotasi di Sekitar Bos
+            bossShieldOrbs = [];
+            for (let i = 0; i < 3; i++) {
+                const orb = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.8, 12, 12),
+                    new THREE.MeshBasicMaterial({ color: 0x00f0ff })
+                );
+                orb.userData = { angle: (Math.PI * 2 / 3) * i, hp: 50 };
+                boss.add(orb);
+                bossShieldOrbs.push(orb);
+            }
 
             const bossLight = new THREE.PointLight(0xff0055, 10, 40);
             bossLight.position.set(0, 0, 5);
@@ -828,28 +882,44 @@
             const speedBonus = 1 + (upgLaserLvl * 0.15);
             const isCrit = selectedPerk === 'critical' && Math.random() < 0.25;
             
-            const laserGeo = new THREE.CylinderGeometry(isCrit ? 0.08 : 0.04, isCrit ? 0.08 : 0.04, 1.5 * speedBonus);
-            const playerLaserMat = new THREE.MeshBasicMaterial({ color: isCrit ? 0xffd700 : 0x00f0ff });
+            // Mode Tembakan Berdasarkan Senjata Aktif
+            if (weaponType === 'shotgun') {
+                [-0.3, -0.15, 0, 0.15, 0.3].forEach(angle => {
+                    const laser = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.06, 0.06, 1.2),
+                        new THREE.MeshBasicMaterial({ color: 0xff0055 })
+                    );
+                    laser.rotation.x = Math.PI / 2;
+                    laser.rotation.y = angle;
+                    laser.position.copy(player.position);
+                    laser.userData = { damage: 6, vx: Math.sin(angle) * 0.8 };
+                    scene.add(laser);
+                    lasers.push(laser);
+                });
+            } else {
+                const laserGeo = new THREE.CylinderGeometry(isCrit ? 0.08 : 0.04, isCrit ? 0.08 : 0.04, 1.5 * speedBonus);
+                const playerLaserMat = new THREE.MeshBasicMaterial({ color: isCrit ? 0xffd700 : 0x00f0ff });
 
-            let xOffsets = tripleShotTimer > 0 ? [-2.0, -1.0, 0, 1.0, 2.0] : [-1.2, 1.2];
-            xOffsets.forEach(xOffset => {
-                const laser = new THREE.Mesh(laserGeo, playerLaserMat);
-                laser.rotation.x = Math.PI / 2;
-                laser.position.copy(player.position);
-                laser.position.x += xOffset;
-                laser.position.z -= 1;
-                laser.userData = { damage: isCrit ? 12 : 4 };
-                scene.add(laser);
-                lasers.push(laser);
-            });
+                let xOffsets = [-1.2, 1.2];
+                xOffsets.forEach(xOffset => {
+                    const laser = new THREE.Mesh(laserGeo, playerLaserMat);
+                    laser.rotation.x = Math.PI / 2;
+                    laser.position.copy(player.position);
+                    laser.position.x += xOffset;
+                    laser.position.z -= 1;
+                    laser.userData = { damage: isCrit ? 12 : 4, vx: 0 };
+                    scene.add(laser);
+                    lasers.push(laser);
+                });
+            }
 
             const wmMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
             [wingman1, wingman2].forEach(wm => {
-                const laser = new THREE.Mesh(laserGeo, wmMat);
+                const laser = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.5), wmMat);
                 laser.rotation.x = Math.PI / 2;
                 laser.position.copy(wm.position);
                 laser.position.z -= 1;
-                laser.userData = { damage: 3 + upgWingmenLvl * 1.0 };
+                laser.userData = { damage: 3 + upgWingmenLvl * 1.0, vx: 0 };
                 scene.add(laser);
                 lasers.push(laser);
             });
@@ -932,6 +1002,8 @@
         }
 
         function triggerDamage() {
+            if (isDashing) return; // Bebas damage saat melakukan Dash
+
             if (shield <= 15 && selectedPerk === 'aegis' && !aegisUsed) {
                 aegisUsed = true;
                 shield = 50;
@@ -989,7 +1061,7 @@
 
         function startGame() {
             initAudio();
-            score = 0; level = 1; shield = maxShield; tripleShotTimer = 0; magnetTimer = 0; ultiCharge = 100; aegisUsed = false;
+            score = 0; level = 1; shield = maxShield; weaponType = 'normal'; weaponTimer = 0; dashCooldown = 0; ultiCharge = 100; aegisUsed = false;
             scoreElement.innerText = score;
             topScoreText.innerText = topScore;
             levelElement.innerText = level;
@@ -1030,8 +1102,11 @@
             requestAnimationFrame(animate);
 
             if (isPlaying) {
-                if (tripleShotTimer > 0) tripleShotTimer--;
-                if (magnetTimer > 0) magnetTimer--;
+                if (dashCooldown > 0) dashCooldown--;
+                if (weaponTimer > 0) {
+                    weaponTimer--;
+                    if (weaponTimer <= 0) weaponType = 'normal';
+                }
 
                 if (ultiCharge < 100) {
                     ultiCharge += 0.15 * (1 + upgUltiLvl * 0.15);
@@ -1053,11 +1128,14 @@
                 wingman2.position.y += (player.position.y - 0.5 - wingman2.position.y) * 0.08;
                 wingman2.position.z = player.position.z + 0.5;
 
+                // Tembakan Laser Player
                 for (let i = lasers.length - 1; i >= 0; i--) {
                     lasers[i].position.z -= 1.2;
+                    lasers[i].position.x += lasers[i].userData.vx || 0;
                     if (lasers[i].position.z < -80) { scene.remove(lasers[i]); lasers.splice(i, 1); }
                 }
 
+                // Tembakan Peluru Musuh
                 for (let i = enemyLasers.length - 1; i >= 0; i--) {
                     enemyLasers[i].position.z += 0.75;
                     if (enemyLasers[i].position.distanceTo(player.position) < 1.5) {
@@ -1070,11 +1148,33 @@
                     if (enemyLasers[i].position.z > 10) { scene.remove(enemyLasers[i]); enemyLasers.splice(i, 1); }
                 }
 
+                // Item Drop Senjata
+                for (let i = powerups.length - 1; i >= 0; i--) {
+                    powerups[i].position.z += 0.3;
+                    powerups[i].rotation.y += 0.05;
+                    if (powerups[i].position.distanceTo(player.position) < 1.8) {
+                        weaponType = powerups[i].userData.type;
+                        weaponTimer = 400; // 6 Detik memakai senjata baru
+                        scene.remove(powerups[i]);
+                        powerups.splice(i, 1);
+                        continue;
+                    }
+                    if (powerups[i].position.z > 10) { scene.remove(powerups[i]); powerups.splice(i, 1); }
+                }
+
                 if (level >= 3 && !boss && !isBossSpawning) spawnBoss();
 
+                // Logika Bos Utama & Shield Orbs
                 if (boss) {
                     boss.position.x += Math.sin(Date.now() * 0.002) * 0.15;
                     if (boss.position.z < -20) boss.position.z += 0.1;
+
+                    // Rotasi Bola Perisai Pelindung Bos
+                    bossShieldOrbs.forEach(orb => {
+                        orb.userData.angle += 0.03;
+                        orb.position.x = Math.cos(orb.userData.angle) * 6;
+                        orb.position.y = Math.sin(orb.userData.angle) * 6;
+                    });
 
                     if (Math.random() < 0.05) bossShoot();
 
@@ -1099,6 +1199,7 @@
                     }
                 }
 
+                // Pergerakan Musuh Normal
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     const enemy = enemies[i];
                     enemy.position.z += enemy.userData.speed;
@@ -1125,6 +1226,7 @@
                             lasers.splice(j, 1);
 
                             if (enemy.userData.hp <= 0) {
+                                if (Math.random() < 0.3) spawnWeaponDrop(enemy.position);
                                 scene.remove(enemy);
                                 enemies.splice(i, 1);
                                 totalEnemiesKilled++;
