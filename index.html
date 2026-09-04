@@ -599,7 +599,7 @@
 
     <div id="continueModal" class="continue-modal hidden">
         <div class="continue-card">
-            <h1>YOU LOSE</h1>
+            <h1>YOU LOSE SO SAD</h1>
             <p>Sistem pertahanan pesawat runtuh sepenuhnya. Gunakan Token Pemulihan Darurat untuk melanjutkan pertempuran!</p>
             <div class="token-counter" id="tokenCounterText">🪙 Token Tersisa: 3 / 3</div>
             <div class="continue-actions">
@@ -620,7 +620,7 @@
     <div id="gameModal" class="modal">
         <div class="modal-card">
             <h1 id="modalTitle">CYBER REALM 3D</h1>
-            <p class="subtitle" id="modalSub">V35.0 Ultimate Hitbox & Diamond Shop Sync Fix</p>
+            <p class="subtitle" id="modalSub">V35.0 Ultimate </p>
 
             <div class="section-label">🎮 KONTROL:</div>
             <div class="controls-grid">
@@ -834,6 +834,9 @@
             if (score >= 500) rank = 'PILOT';
             if (score >= 1500) rank = 'ACE';
             if (score >= 3500) rank = 'LEGEND';
+            if (score >= 5000) rank = 'MYTHIC';
+            if (score >= 8000) rank = 'MYTHIC GLORY';
+            if (score >= 12000) rank = 'FINAL GLORY';
             rankText.innerText = rank;
         }
 
